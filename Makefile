@@ -9,9 +9,9 @@ TEMPLATES_PATH := .
 SERVICE_NAME := payproc-errors-erlang
 
 # Build image tag to be used
-BUILD_IMAGE_TAG := 4fa802d2f534208b9dc2ae203e2a5f07affbf385
+BUILD_IMAGE_TAG := 917afcdd0c0a07bf4155d597bbba72e962e1a34a
 
-CALL_ANYWHERE := all submodules rebar-update compile xref lint dialyze clean distclean
+CALL_ANYWHERE := all submodules rebar-update compile xref lint dialyze clean distclean check_format format
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
@@ -39,6 +39,12 @@ xref: submodules
 
 lint:
 	elvis rock
+
+check_format:
+	$(REBAR) fmt -c
+
+format:
+	$(REBAR) fmt -w
 
 dialyze: submodules
 	$(REBAR) dialyzer
