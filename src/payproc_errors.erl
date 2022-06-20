@@ -99,8 +99,8 @@ error_to_dynamic(Type, SE) ->
 sub_error_to_dynamic(undefined, _) ->
     undefined;
 sub_error_to_dynamic(Type, SSE) ->
-    {Code, SubType, SSE_} = to_dynamic(Type, SSE),
-    #domain_SubFailure{code = Code, sub = sub_error_to_dynamic(SubType, SSE_)}.
+    {Code, SubType, SSEDyn} = to_dynamic(Type, SSE),
+    #domain_SubFailure{code = Code, sub = sub_error_to_dynamic(SubType, SSEDyn)}.
 
 -spec code_to_dynamic(static_code()) -> dynamic_code().
 code_to_dynamic({unknown_error, Code}) ->
@@ -141,7 +141,7 @@ join(Code, Sub) -> [Code, $:, Sub].
 
 -spec type_by_field(static_code(), type()) -> atom() | undefined.
 type_by_field(Code, Type) ->
-    case [Field || Field = {Code_, _} <- struct_info(Type), Code =:= Code_] of
+    case [Field || Field = {FCode, _} <- struct_info(Type), Code =:= FCode] of
         [{_, SubType}] -> SubType;
         [] -> undefined
     end.

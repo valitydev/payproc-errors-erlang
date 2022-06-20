@@ -31,22 +31,22 @@ known_error_test(_C) ->
     DE = #domain_Failure{
         code = <<"authorization_failed">>,
         sub = #domain_SubFailure{
-            code = <<"payment_tool_rejected">>,
+            code = <<"account_limit_exceeded">>,
             sub = #domain_SubFailure{
-                code = <<"bank_card_rejected">>,
+                code = <<"amount">>,
                 sub = #domain_SubFailure{
-                    code = <<"cvv_invalid">>
+                    code = <<"monthly">>
                 }
             }
         }
     },
     SE =
         {authorization_failed,
-            {payment_tool_rejected, {bank_card_rejected, {cvv_invalid, #payprocerr_GeneralFailure{}}}}},
+            {account_limit_exceeded, {amount, {monthly, #payprocerr_GeneralFailure{}}}}},
     DE = payproc_errors:construct('PaymentFailure', SE),
-    ok = payproc_errors:match('PaymentFailure', DE, fun(SE_) when SE =:= SE_ -> ok end),
+    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end),
     DE = payproc_errors:construct('RefundFailure', SE),
-    ok = payproc_errors:match('RefundFailure', DE, fun(SE_) when SE =:= SE_ -> ok end).
+    ok = payproc_errors:match('RefundFailure', DE, fun(E) when SE =:= E -> ok end).
 
 -spec unknown_error_atom_test(config()) -> ok.
 unknown_error_atom_test(_C) ->
@@ -56,7 +56,7 @@ unknown_error_atom_test(_C) ->
     },
     SE = {{unknown_error, UnknownCode}, #payprocerr_GeneralFailure{}},
     DE = payproc_errors:construct('PaymentFailure', SE),
-    ok = payproc_errors:match('PaymentFailure', DE, fun(SE_) when SE =:= SE_ -> ok end).
+    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
 
 -spec unknown_error_test(config()) -> ok.
 unknown_error_test(_C) ->
@@ -66,7 +66,7 @@ unknown_error_test(_C) ->
     },
     SE = {{unknown_error, UnknownCode}, #payprocerr_GeneralFailure{}},
     DE = payproc_errors:construct('PaymentFailure', SE),
-    ok = payproc_errors:match('PaymentFailure', DE, fun(SE_) when SE =:= SE_ -> ok end).
+    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
 
 -spec bad_static_type_test(config()) -> ok.
 bad_static_type_test(_C) ->
