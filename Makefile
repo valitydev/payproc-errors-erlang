@@ -1,61 +1,93 @@
-REBAR := $(shell which rebar3 2>/dev/null || which ./rebar3)
-SUBMODULES = build_utils
-SUBTARGETS = $(patsubst %,%/.git,$(SUBMODULES))
+# HINT
+# Use this file to override variables here.
+# For example, to run with podman put `DOCKER=podman` there.
+-include Makefile.env
 
-UTILS_PATH := build_utils
-TEMPLATES_PATH := .
+# NOTE
+# Variables specified in `.env` file are used to pick and setup specific
+# component versions, both when building a development image and when running
+# CI workflows on GH Actions. This ensures that tasks run with `wc-` prefix
+# (like `wc-dialyze`) are reproducible between local machine and CI runners.
+DOTENV := $(shell grep -v '^\#' .env)
 
-# Name of the service (I don't know why is needed by build_utils!)
-SERVICE_NAME := payproc-errors-erlang
-
-# Build image tag to be used
-BUILD_IMAGE_TAG := 917afcdd0c0a07bf4155d597bbba72e962e1a34a
-
-CALL_ANYWHERE := all submodules rebar-update compile xref lint dialyze clean distclean check_format format
-
-CALL_W_CONTAINER := $(CALL_ANYWHERE) test
+DOCKER ?= docker
+REBAR ?= rebar3
 
 all: compile
 
--include $(UTILS_PATH)/make_lib/utils_container.mk
+# Development images
 
-.PHONY: $(CALL_W_CONTAINER)
+DEV_IMAGE_TAG = payproc-errors-dev
+DEV_IMAGE_ID = $(file < .image.dev)
 
-# CALL_ANYWHERE
-$(SUBTARGETS): %/.git: %
-	git submodule update --init $<
-	touch $@
+.PHONY: dev-image clean-dev-image wc-shell test
 
-submodules: $(SUBTARGETS)
+dev-image: .image.dev
 
-rebar-update:
-	$(REBAR) update
+.image.dev: Dockerfile.dev .env
+	$(DOCKER) build . -f Dockerfile.dev --tag $(DEV_IMAGE_TAG) $(DOTENV:%=--build-arg %)
+	$(DOCKER) image ls -q -f "reference=$(DEV_IMAGE_TAG)" | head -n1 > $@
 
-compile: submodules rebar-update
+clean-dev-image:
+ifneq ($(DEV_IMAGE_ID),)
+	$(DOCKER) image rm -f $(DEV_IMAGE_TAG)
+	rm .image.dev
+endif
+
+DOCKER_WC_OPTIONS := -v $(PWD):$(PWD) --workdir $(PWD)
+DOCKER_WC_EXTRA_OPTIONS ?= --rm
+DOCKER_RUN = $(DOCKER) run -t $(DOCKER_WC_OPTIONS) $(DOCKER_WC_EXTRA_OPTIONS)
+
+# Utility tasks
+
+wc-shell: dev-image
+	$(DOCKER_RUN) --interactive --tty $(DEV_IMAGE_TAG)
+
+wc-%: dev-image
+	$(DOCKER_RUN) $(DEV_IMAGE_TAG) make $*
+
+# Rebar tasks
+
+rebar-shell:
+	$(REBAR) shell
+
+compile:
 	$(REBAR) compile
 
-xref: submodules
+xref:
 	$(REBAR) xref
 
 lint:
-	elvis rock
+	$(REBAR) lint
 
-check_format:
+check-format:
 	$(REBAR) fmt -c
+
+dialyze:
+	$(REBAR) as test dialyzer
+
+release:
+	$(REBAR) as prod release
+
+eunit:
+	$(REBAR) eunit --cover
+
+common-test:
+	$(REBAR) ct --cover
+
+cover:
+	$(REBAR) covertool generate
 
 format:
 	$(REBAR) fmt -w
 
-dialyze: submodules
-	$(REBAR) dialyzer
-
 clean:
 	$(REBAR) clean
 
-distclean:
-	$(REBAR) clean -a
+distclean: clean-build-image
 	rm -rf _build
 
-# CALL_W_CONTAINER
-test: submodules
-	$(REBAR) ct
+test: eunit common-test
+
+cover-report:
+	$(REBAR) cover
