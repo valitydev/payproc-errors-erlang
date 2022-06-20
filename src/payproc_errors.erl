@@ -16,7 +16,7 @@
 -export([format_raw/1]).
 
 -include_lib("damsel/include/dmsl_domain_thrift.hrl").
--include_lib("damsel/include/dmsl_payment_processing_errors_thrift.hrl").
+-include_lib("damsel/include/dmsl_payproc_error_thrift.hrl").
 
 %%
 
@@ -28,7 +28,7 @@
 -type static_error() :: {static_code(), static_sub_error()}.
 -type static_sub_error() ::
     {static_code(), static_sub_error()}
-    | dmsl_payment_processing_errors_thrift:'GeneralFailure'().
+    | dmsl_payproc_error_thrift:'GeneralFailure'().
 
 -type dynamic_code() :: binary().
 -type dynamic_error() :: dmsl_domain_thrift:'Failure'().
@@ -65,7 +65,7 @@ error_to_static(Type, #domain_Failure{code = Code, sub = SDE}) ->
 
 -spec sub_error_to_static(type(), dynamic_sub_error()) -> static_sub_error().
 sub_error_to_static(_, undefined) ->
-    #payprocerr_GeneralFailure{};
+    #payproc_error_GeneralFailure{};
 sub_error_to_static(Type, #domain_SubFailure{code = Code, sub = SDE}) ->
     to_static(Code, Type, SDE).
 
@@ -76,7 +76,7 @@ to_static(Code, Type, SDE) ->
         SubType when SubType =/= undefined ->
             {StaticCode, sub_error_to_static(SubType, SDE)};
         undefined ->
-            {{unknown_error, Code}, #payprocerr_GeneralFailure{}}
+            {{unknown_error, Code}, #payproc_error_GeneralFailure{}}
     end.
 
 -spec code_to_static(dynamic_code()) -> static_code().
@@ -111,9 +111,9 @@ code_to_dynamic(Code) ->
 %%
 
 -spec to_dynamic(type(), static_sub_error()) -> {dynamic_code(), type() | undefined, static_sub_error()}.
-to_dynamic(_, {Code = {unknown_error, _}, #payprocerr_GeneralFailure{}}) ->
+to_dynamic(_, {Code = {unknown_error, _}, #payproc_error_GeneralFailure{}}) ->
     {code_to_dynamic(Code), undefined, undefined};
-to_dynamic(Type, {Code, #payprocerr_GeneralFailure{}}) ->
+to_dynamic(Type, {Code, #payproc_error_GeneralFailure{}}) ->
     'GeneralFailure' = check_type(type_by_field(Code, Type)),
     {code_to_dynamic(Code), undefined, undefined};
 to_dynamic(Type, {Code, SSE}) ->
@@ -148,5 +148,5 @@ type_by_field(Code, Type) ->
 
 -spec struct_info(atom()) -> [{atom(), atom()}].
 struct_info(Type) ->
-    {struct, _, Fs} = dmsl_payment_processing_errors_thrift:struct_info(Type),
-    [{FN, FT} || {_, _, {struct, _, {'dmsl_payment_processing_errors_thrift', FT}}, FN, _} <- Fs].
+    {struct, _, Fs} = dmsl_payproc_error_thrift:struct_info(Type),
+    [{FN, FT} || {_, _, {struct, _, {'dmsl_payproc_error_thrift', FT}}, FN, _} <- Fs].
