@@ -41,8 +41,7 @@ known_error_test(_C) ->
         }
     },
     SE =
-        {authorization_failed,
-            {account_limit_exceeded, {amount, {monthly, #payprocerr_GeneralFailure{}}}}},
+        {authorization_failed, {account_limit_exceeded, {amount, {monthly, #payprocerr_GeneralFailure{}}}}},
     DE = payproc_errors:construct('PaymentFailure', SE),
     ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end),
     DE = payproc_errors:construct('RefundFailure', SE),
