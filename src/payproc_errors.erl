@@ -20,7 +20,7 @@
 
 %%
 
--type error_type() :: 'PaymentFailure' | 'RefundFailure' | 'PreAuthorizationFailure'.
+-type error_type() :: 'PaymentFailure' | 'RefundFailure'.
 -type type() :: atom().
 -type reason() :: binary().
 
