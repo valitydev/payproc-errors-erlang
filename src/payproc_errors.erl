@@ -14,6 +14,10 @@
 -export([match/3]).
 -export([format/2]).
 -export([format_raw/1]).
+-export([from_notation/1]).
+-export([from_notation/2]).
+-export([to_notation/1]).
+-export([match_notation/2]).
 
 -include_lib("damsel/include/dmsl_domain_thrift.hrl").
 -include_lib("damsel/include/dmsl_payproc_error_thrift.hrl").
@@ -30,6 +34,10 @@
     {static_code(), static_sub_error()}
     | dmsl_payproc_error_thrift:'GeneralFailure'().
 
+%% Dynamic notation (textual representation) is ":"-separated binary of dynamic codes.
+%% I.e. `<<"preauthorization_failed:card_blocked">>`.
+%% See `damsel/proto/payment_processing_errors.thrift`
+-type dynamic_notation() :: binary().
 -type dynamic_code() :: binary().
 -type dynamic_error() :: dmsl_domain_thrift:'Failure'().
 -type dynamic_sub_error() :: dmsl_domain_thrift:'SubFailure'() | undefined.
@@ -150,3 +158,38 @@ type_by_field(Code, Type) ->
 struct_info(Type) ->
     {struct, _, Fs} = dmsl_payproc_error_thrift:struct_info(Type),
     [{FN, FT} || {_, _, {struct, _, {'dmsl_payproc_error_thrift', FT}}, FN, _} <- Fs].
+
+%%
+
+-spec from_notation(dynamic_notation()) -> dynamic_error() | undefined.
+from_notation(Notation) when is_binary(Notation) ->
+    from_notation(Notation, undefined).
+
+-spec from_notation(dynamic_notation(), binary() | undefined) -> dynamic_error() | undefined.
+from_notation(Notation, Reason) when is_binary(Notation) ->
+    Codes = lists:reverse(binary:split(Notation, <<$:>>, [global])),
+    do_construct_from_notation(Codes, Reason, undefined).
+
+do_construct_from_notation([<<"">>], _Reason, _SubFailure) ->
+    undefined;
+do_construct_from_notation([Code], Reason, SubFailure) ->
+    #domain_Failure{code = Code, reason = Reason, sub = SubFailure};
+do_construct_from_notation([SubCode | Codes], Reason, SubFailure) ->
+    do_construct_from_notation(Codes, Reason, #domain_SubFailure{code = SubCode, sub = SubFailure}).
+
+%%
+
+-spec to_notation(dynamic_error()) -> dynamic_notation().
+to_notation(#domain_Failure{code = Code, sub = SubFailure}) ->
+    iolist_to_binary(join_notation_with_subfailures(SubFailure, [Code])).
+
+join_notation_with_subfailures(undefined, Segments) ->
+    lists:reverse(Segments);
+join_notation_with_subfailures(#domain_SubFailure{code = Code, sub = SubFailure}, Segments) ->
+    join_notation_with_subfailures(SubFailure, [Code, $: | Segments]).
+
+%%
+
+-spec match_notation(dynamic_error(), fun((binary()) -> R)) -> R.
+match_notation(DE, MatchFun) when is_function(MatchFun, 1) ->
+    MatchFun(to_notation(DE)).

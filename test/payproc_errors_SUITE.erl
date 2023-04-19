@@ -10,6 +10,9 @@
 -export([unknown_error_atom_test/1]).
 -export([bad_static_type_test/1]).
 -export([formatting_test/1]).
+-export([from_notation_test/1]).
+-export([to_notation_test/1]).
+-export([match_notation_test/1]).
 
 %%
 
@@ -23,7 +26,10 @@ all() ->
         unknown_error_test,
         unknown_error_atom_test,
         bad_static_type_test,
-        formatting_test
+        formatting_test,
+        from_notation_test,
+        to_notation_test,
+        match_notation_test
     ].
 
 -spec known_error_test(config()) -> _.
@@ -91,3 +97,58 @@ formatting_test(_C) ->
     Type = 'PaymentFailure',
     <<"authorization_failed:payment_tool_rejected:bank_card_rejected:cvv_invalid">> =
         erlang:list_to_binary(payproc_errors:format(Type, payproc_errors:construct(Type, SE))).
+
+-spec from_notation_test(config()) -> _.
+from_notation_test(_C) ->
+    #domain_Failure{
+        code = <<"failure">>,
+        reason = <<"Failure reason">>,
+        sub = #domain_SubFailure{
+            code = <<"sub_failure1">>,
+            sub = #domain_SubFailure{
+                code = <<"sub_failure2">>
+            }
+        }
+    } =
+        payproc_errors:from_notation(<<"failure:sub_failure1:sub_failure2">>, <<"Failure reason">>),
+
+    #domain_Failure{
+        code = <<"failure">>,
+        reason = <<"Failure reason">>
+    } =
+        payproc_errors:from_notation(<<"failure">>, <<"Failure reason">>),
+
+    undefined = payproc_errors:from_notation(<<"">>, <<"Failure reason">>).
+
+-spec to_notation_test(config()) -> _.
+to_notation_test(_C) ->
+    <<"failure:sub_failure1:sub_failure2">> = payproc_errors:to_notation(#domain_Failure{
+        code = <<"failure">>,
+        reason = <<"Failure reason">>,
+        sub = #domain_SubFailure{
+            code = <<"sub_failure1">>,
+            sub = #domain_SubFailure{
+                code = <<"sub_failure2">>
+            }
+        }
+    }),
+
+    <<"failure">> = payproc_errors:to_notation(#domain_Failure{
+        code = <<"failure">>,
+        reason = <<"Failure reason">>
+    }).
+
+-spec match_notation_test(config()) -> _.
+match_notation_test(_C) ->
+    Failure = #domain_Failure{
+        code = <<"failure">>,
+        reason = <<"Failure reason">>,
+        sub = #domain_SubFailure{
+            code = <<"sub_failure1">>,
+            sub = #domain_SubFailure{
+                code = <<"sub_failure2">>
+            }
+        }
+    },
+    ok = payproc_errors:match_notation(Failure, fun(<<"failure:sub_failure1:sub_failure2">>) -> ok end),
+    ok = payproc_errors:match_notation(Failure, fun(<<"failure:sub_failure1", _/binary>>) -> ok end).
