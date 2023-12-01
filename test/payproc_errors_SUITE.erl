@@ -8,6 +8,7 @@
 -export([known_error_test/1]).
 -export([unknown_error_atom_test/1]).
 -export([unknown_error_nested_test/1]).
+-export([unknown_error_nested_mixed_test/1]).
 -export([bad_static_type_test/1]).
 -export([formatting_test/1]).
 -export([from_notation_test/1]).
@@ -25,6 +26,7 @@ all() ->
         known_error_test,
         unknown_error_atom_test,
         unknown_error_nested_test,
+        unknown_error_nested_mixed_test,
         bad_static_type_test,
         formatting_test,
         from_notation_test,
@@ -62,8 +64,30 @@ unknown_error_atom_test(_C) ->
     DE = payproc_errors:construct('PaymentFailure', SE),
     ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
 
+-define(NESTED_UNKNOWN_SUBCODES,
+    {
+        {unknown_error, <<"rejected_routes">>},
+        {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
+    }
+).
+
 -spec unknown_error_nested_test(config()) -> _.
 unknown_error_nested_test(_C) ->
+    DE = #domain_Failure{
+        code = <<"forbidden">>,
+        sub = #domain_SubFailure{
+            code = <<"rejected_routes">>,
+            sub = #domain_SubFailure{
+                code = <<"limit_hold_reject">>
+            }
+        }
+    },
+    SE = {{unknown_error, <<"forbidden">>}, ?NESTED_UNKNOWN_SUBCODES},
+    DE = payproc_errors:construct('PaymentFailure', SE),
+    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
+
+-spec unknown_error_nested_mixed_test(config()) -> _.
+unknown_error_nested_mixed_test(_C) ->
     DE = #domain_Failure{
         code = <<"no_route_found">>,
         sub = #domain_SubFailure{
@@ -76,22 +100,8 @@ unknown_error_nested_test(_C) ->
             }
         }
     },
-    SE =
-        {no_route_found,
-            {
-                {unknown_error, <<"forbidden">>},
-                {
-                    {unknown_error, <<"rejected_routes">>},
-                    {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
-                }
-            }},
-    EquivalentSE =
-        {no_route_found,
-            {forbidden,
-                {
-                    {unknown_error, <<"rejected_routes">>},
-                    {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
-                }}},
+    SE = {no_route_found, {{unknown_error, <<"forbidden">>}, ?NESTED_UNKNOWN_SUBCODES}},
+    EquivalentSE = {no_route_found, {forbidden, ?NESTED_UNKNOWN_SUBCODES}},
     DE = payproc_errors:construct('PaymentFailure', SE),
     ok = payproc_errors:match('PaymentFailure', DE, fun(E) when EquivalentSE =:= E -> ok end).
 
@@ -110,6 +120,8 @@ bad_static_type_test(_C) ->
         (catch payproc_errors:construct('RefundFailure', {preauthorization_failed, #payproc_error_GeneralFailure{}})),
     {'EXIT', {badarg, _}} =
         (catch payproc_errors:construct('RefundFailure', Bad)),
+    {'EXIT', {badarg, _}} =
+        (catch payproc_errors:construct('PaymentFailure', {{unknown_error, <<"forbidden">>}, Bad})),
     ok.
 
 -spec formatting_test(config()) -> _.

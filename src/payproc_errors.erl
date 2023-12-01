@@ -81,10 +81,10 @@ sub_error_to_static(Type, #domain_SubFailure{code = Code, sub = SDE}) ->
 to_static(Code, Type, SDE) ->
     StaticCode = code_to_static(Code),
     case type_by_field(StaticCode, Type) of
-        SubType when SubType =/= undefined ->
-            {StaticCode, sub_error_to_static(SubType, SDE)};
         undefined ->
-            {{unknown_error, Code}, #payproc_error_GeneralFailure{}}
+            {{unknown_error, Code}, sub_error_to_static(undefined, SDE)};
+        SubType ->
+            {StaticCode, sub_error_to_static(SubType, SDE)}
     end.
 
 -spec code_to_static(dynamic_code()) -> static_code().
@@ -150,7 +150,7 @@ join(Code, Sub) -> [Code, $:, Sub].
 -spec type_by_field(static_code(), type()) -> atom() | undefined.
 type_by_field({unknown_error, DynamicCode}, _Type) ->
     try
-        binary_to_existing_atom(DynamicCode)
+        erlang:binary_to_existing_atom(DynamicCode, utf8)
     catch
         error:badarg -> unknown_error
     end;
