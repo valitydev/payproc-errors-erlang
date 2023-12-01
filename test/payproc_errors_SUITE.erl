@@ -78,13 +78,22 @@ unknown_error_nested_test(_C) ->
     },
     SE =
         {no_route_found,
+            {
+                {unknown_error, <<"forbidden">>},
+                {
+                    {unknown_error, <<"rejected_routes">>},
+                    {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
+                }
+            }},
+    EquivalentSE =
+        {no_route_found,
             {forbidden,
                 {
                     {unknown_error, <<"rejected_routes">>},
                     {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
                 }}},
     DE = payproc_errors:construct('PaymentFailure', SE),
-    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
+    ok = payproc_errors:match('PaymentFailure', DE, fun(E) when EquivalentSE =:= E -> ok end).
 
 -spec bad_static_type_test(config()) -> _.
 bad_static_type_test(_C) ->
