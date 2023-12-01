@@ -148,6 +148,12 @@ join(Code, Sub) -> [Code, $:, Sub].
 %%
 
 -spec type_by_field(static_code(), type()) -> atom() | undefined.
+type_by_field({unknown_error, DynamicCode}, _Type) ->
+    try
+        binary_to_existing_atom(DynamicCode)
+    catch
+        error:badarg -> unknown_error
+    end;
 type_by_field(Code, Type) ->
     case [Field || Field = {FCode, _} <- struct_info(Type), Code =:= FCode] of
         [{_, SubType}] -> SubType;

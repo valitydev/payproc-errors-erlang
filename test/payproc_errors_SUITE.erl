@@ -6,8 +6,8 @@
 -export([all/0]).
 
 -export([known_error_test/1]).
--export([unknown_error_test/1]).
 -export([unknown_error_atom_test/1]).
+-export([unknown_error_nested_test/1]).
 -export([bad_static_type_test/1]).
 -export([formatting_test/1]).
 -export([from_notation_test/1]).
@@ -23,8 +23,8 @@
 all() ->
     [
         known_error_test,
-        unknown_error_test,
         unknown_error_atom_test,
+        unknown_error_nested_test,
         bad_static_type_test,
         formatting_test,
         from_notation_test,
@@ -62,13 +62,27 @@ unknown_error_atom_test(_C) ->
     DE = payproc_errors:construct('PaymentFailure', SE),
     ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
 
--spec unknown_error_test(config()) -> _.
-unknown_error_test(_C) ->
-    UnknownCode = erlang:atom_to_binary(bad_error_code, utf8),
+-spec unknown_error_nested_test(config()) -> _.
+unknown_error_nested_test(_C) ->
     DE = #domain_Failure{
-        code = UnknownCode
+        code = <<"no_route_found">>,
+        sub = #domain_SubFailure{
+            code = <<"forbidden">>,
+            sub = #domain_SubFailure{
+                code = <<"rejected_routes">>,
+                sub = #domain_SubFailure{
+                    code = <<"limit_hold_reject">>
+                }
+            }
+        }
     },
-    SE = {{unknown_error, UnknownCode}, #payproc_error_GeneralFailure{}},
+    SE =
+        {no_route_found,
+            {forbidden,
+                {
+                    {unknown_error, <<"rejected_routes">>},
+                    {{unknown_error, <<"limit_hold_reject">>}, #payproc_error_GeneralFailure{}}
+                }}},
     DE = payproc_errors:construct('PaymentFailure', SE),
     ok = payproc_errors:match('PaymentFailure', DE, fun(E) when SE =:= E -> ok end).
 
