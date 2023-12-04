@@ -81,7 +81,7 @@ sub_error_to_static(Type, #domain_SubFailure{code = Code, sub = SDE}) ->
 to_static(Code, Type, SDE) ->
     StaticCode = code_to_static(Code),
     case type_by_field(StaticCode, Type) of
-        undefined ->
+        SubType when SubType =:= undefined orelse SubType =:= unknown_error ->
             {{unknown_error, Code}, sub_error_to_static(undefined, SDE)};
         SubType ->
             {StaticCode, sub_error_to_static(SubType, SDE)}
@@ -148,12 +148,10 @@ join(Code, Sub) -> [Code, $:, Sub].
 %%
 
 -spec type_by_field(static_code(), type()) -> atom() | undefined.
-type_by_field({unknown_error, DynamicCode}, _Type) ->
-    try
-        erlang:binary_to_existing_atom(DynamicCode, utf8)
-    catch
-        error:badarg -> unknown_error
-    end;
+type_by_field(_Code, undefined) ->
+    undefined;
+type_by_field({unknown_error, _DynamicCode}, _Type) ->
+    unknown_error;
 type_by_field(Code, Type) ->
     case [Field || Field = {FCode, _} <- struct_info(Type), Code =:= FCode] of
         [{_, SubType}] -> SubType;

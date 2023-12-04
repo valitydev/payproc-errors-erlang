@@ -73,6 +73,10 @@ unknown_error_atom_test(_C) ->
 
 -spec unknown_error_nested_test(config()) -> _.
 unknown_error_nested_test(_C) ->
+    %% NOTE Ensure atoms exist
+    _ = rejected_routes,
+    _ = limit_hold_reject,
+
     DE = #domain_Failure{
         code = <<"forbidden">>,
         sub = #domain_SubFailure{
@@ -88,6 +92,10 @@ unknown_error_nested_test(_C) ->
 
 -spec unknown_error_nested_mixed_test(config()) -> _.
 unknown_error_nested_mixed_test(_C) ->
+    %% NOTE Ensure atoms exist
+    _ = rejected_routes,
+    _ = limit_hold_reject,
+
     DE = #domain_Failure{
         code = <<"no_route_found">>,
         sub = #domain_SubFailure{
